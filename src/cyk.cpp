@@ -30,7 +30,7 @@ bool CYK::predict(const char *string) {
             for (size_t i = 0; i < n; ++i) {
                 if (string[i] == symbol){
                     d[rule.left_.symbol_][i][i] = true;
-                    printf ("d[%c][%d][%d] = true\n", rule.left_.symbol_, i, i);
+                    // printf ("d[%c][%d][%d] = true\n", rule.left_.symbol_, i, i);
                 }
             }
         }   
