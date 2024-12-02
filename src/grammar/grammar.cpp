@@ -88,7 +88,11 @@ void Grammar::ReadRuleFromStdin() {
 			throw GrammarException("Wrong rule syntax: right part contains unknown symbol.");
 		}
 	}
-	rules_.push_back(Rule(NeTerminal(left), right));
+
+	if (!rules__.count(NeTerminal(left))){
+		rules__[NeTerminal(left)] = std::vector<Rule>();
+	}
+	rules__[NeTerminal(left)].push_back(Rule(NeTerminal(left), right));
 }
 
 void Grammar::Print(){
@@ -105,8 +109,10 @@ void Grammar::Print(){
 	std::cout << std::endl;
 
 	std::cout << "Rules:\n";
-	for (auto& elem: rules_) {
-		elem.Print();
+	for (auto& neTerminal: neTerminals_) {
+		for (auto& rule: rules__[neTerminal]) {
+			rule.Print();
+		}
 	}
 	std::cout << std::endl;
 }

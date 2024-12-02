@@ -1,13 +1,14 @@
 #pragma once
-#include <vector>
-#include <iostream>
 #include <exception>
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+
 
 enum class GrammarType {
     Any, Chomsky, LR0, LR1, LRk
 };
 // enum class RuleType {}
-
 
 class GrammarException : public std::exception
 {
@@ -21,15 +22,19 @@ public:
 };
 
 struct GrammarSymbol {
-    char symbol_;
-    GrammarSymbol() {}
-    GrammarSymbol(char symbol) : symbol_(symbol){}
-    virtual bool IsTerminal ()const {
-        return false;
+    char symbol_ = 0;
+    bool isTerminal_ = false;
+ 
+    GrammarSymbol() = default;
+    GrammarSymbol(char symbol, bool isTerminal = false) : 
+        symbol_(symbol), isTerminal_(isTerminal){}
+
+    bool IsTerminal ()const {
+        return isTerminal_;
     };
 
     bool operator == (const GrammarSymbol& other) const {
-        return symbol_ == other.symbol_;
+        return isTerminal_ == other.isTerminal_ && symbol_ == other.symbol_;
     }
     bool operator < (const GrammarSymbol&other) const {
         return symbol_ < other.symbol_;
@@ -37,70 +42,55 @@ struct GrammarSymbol {
 };
 
 struct Terminal : public GrammarSymbol {
-    Terminal() {}
-    Terminal(char terminal) : GrammarSymbol(terminal){};
-    bool IsTerminal()const override final {
-        return true;
-    }
-
-    bool operator == (const Terminal& other)const {
-        return symbol_ == other.symbol_;
-    }
-    bool operator == (const GrammarSymbol& other) const {
-        return other.IsTerminal() && *this == other;
-    }
+    Terminal() = default;
+    Terminal(char terminal) : GrammarSymbol(terminal, true){};
 };
 
-
 struct NeTerminal : public GrammarSymbol {
-    NeTerminal() {}
+    NeTerminal() = default;
     NeTerminal(char neTerminal) : GrammarSymbol(neTerminal){};
-    bool IsTerminal()const override final {
-        return false;
-    }
-
-    bool operator == (const NeTerminal& other) const {
-        return symbol_ == other.symbol_;
-    }
-    bool operator == (const GrammarSymbol& other) const {
-        return !other.IsTerminal() && *this == other;
-    }
 };
 
 static const Terminal Epsilon = Terminal (' ');
+
 struct Rule {
-    std::pair<NeTerminal, std::vector<GrammarSymbol>> rule_;
     NeTerminal left_;
     std::vector<GrammarSymbol> right_;
 
+    Rule () {}
     Rule(NeTerminal left, std::vector<GrammarSymbol> right) : left_(left), right_(right) {
         if (!right_.size()) {
-            right_.push_back (Epsilon);
+            right_.push_back(Epsilon);
         }
-        rule_ = std::pair<NeTerminal, std::vector<GrammarSymbol>>(left_, right_);
     }
     Rule(NeTerminal left, std::initializer_list<GrammarSymbol> list) : left_(left) {
         for (auto elem: list) {
             right_.push_back(elem);
         };
         if (!right_.size()) {
-            right_.push_back (Epsilon);
+            right_.push_back(Epsilon);
         }
-        rule_ = std::pair<NeTerminal, std::vector<GrammarSymbol>>(left_, right_);
     }
 
     void Print() {
         std::cout << left_.symbol_ << " ->";
-        for (auto& elem: right_) {
+        for (auto elem: right_) {
             std::cout << " " << elem.symbol_;
         }
         std::cout << std::endl;
     }
 };
 
+struct NeTerminalHasher {
+    size_t operator() (const NeTerminal& neTerminal)const {
+        return std::hash<char>{}(neTerminal.symbol_);
+    }
+};
+
 struct Grammar { //
+    std::unordered_map<NeTerminal, std::vector<Rule>,NeTerminalHasher> rules__ = {};
     NeTerminal start_;
-    std::vector<Rule> rules_;
+    // std::vector<Rule> rules_;
     std::vector<Terminal> alphabet_;    
     std::vector<NeTerminal> neTerminals_;
     size_t rulesSize_ = 0;
