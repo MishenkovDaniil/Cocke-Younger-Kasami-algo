@@ -136,7 +136,7 @@ void Grammar::RemoveEmptyRules() {
 		for (auto it = rules__[elem].begin(), end = rules__[elem].end(); it != end; ++it) {
 			if (it->right_.size() == 1 && it->right_[0] == Epsilon) {	
 				Rule rule = *it;
-				if ((!it->left_ == start_)) {
+				if (!(it->left_ == start_)) {
 					rules__[elem].erase(it);
 				}
 				RemoveEmptyRule(rule);
