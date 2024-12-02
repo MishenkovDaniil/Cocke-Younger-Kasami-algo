@@ -98,13 +98,17 @@ void Grammar::ReadRuleFromStdin() {
 void Grammar::Print(){
 	std::cout << "Alphabet:";
 	for (auto elem: alphabet_) {
-		std::cout << elem.symbol_ << ",";
+		std::cout << static_cast<char>(elem.symbol_) << ",";
 	}
 	std::cout << std::endl;
 
 	std::cout << "Non-terminals:";
 	for (auto elem: neTerminals_) {
-		std::cout << elem.symbol_ << ",";
+		if (elem.symbol_ < 256) {
+			std::cout << static_cast<char>(elem.symbol_) << ",";
+		} else {
+			std::cout << elem.symbol_ << ",";
+		}
 	}
 	std::cout << std::endl;
 
@@ -119,4 +123,19 @@ void Grammar::Print(){
 
 void Grammar::ConvertToChomsky() {
     
+}
+
+void Grammar::RemoveLongRules() {
+	for (auto elem: neTerminals_) {
+		std::vector<Rule> new_rules;
+		for (auto it = rules__[elem].begin(), end = rules__[elem].end(); it != end; ++it) {
+			if (it->right_.size() > 2) {
+				RemoveLongRule(new_rules, *it);
+			}
+		}
+	}
+}
+
+void Grammar::RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule) {
+
 }

@@ -3,7 +3,7 @@
 #include "grammar/grammar.hpp"
 struct GrammarSymbolHasher {
     size_t operator() (const GrammarSymbol& grammarSymbol)const {
-        return std::hash<char>{}(grammarSymbol.symbol_);
+        return std::hash<size_t>{}(grammarSymbol.symbol_);
     }
 };
 

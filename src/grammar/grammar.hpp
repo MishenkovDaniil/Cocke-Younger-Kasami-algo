@@ -22,12 +22,14 @@ public:
 };
 
 struct GrammarSymbol {
-    char symbol_ = 0;
+    size_t symbol_ = 0;
     bool isTerminal_ = false;
  
     GrammarSymbol() = default;
-    GrammarSymbol(char symbol, bool isTerminal = false) : 
+    GrammarSymbol(size_t symbol, bool isTerminal = false) : 
         symbol_(symbol), isTerminal_(isTerminal){}
+    GrammarSymbol(char symbol, bool isTerminal = false) : 
+        GrammarSymbol(static_cast<size_t>(symbol), isTerminal) {}
 
     bool IsTerminal ()const {
         return isTerminal_;
@@ -43,11 +45,16 @@ struct GrammarSymbol {
 
 struct Terminal : public GrammarSymbol {
     Terminal() = default;
+    Terminal(size_t terminal) : GrammarSymbol(terminal, true){ 
+        if (terminal > 256) {
+            throw GrammarException("Terminals must be characters");
+    }};
     Terminal(char terminal) : GrammarSymbol(terminal, true){};
 };
 
 struct NeTerminal : public GrammarSymbol {
     NeTerminal() = default;
+    NeTerminal(size_t neTerminal) : GrammarSymbol(neTerminal){};
     NeTerminal(char neTerminal) : GrammarSymbol(neTerminal){};
 };
 
@@ -73,9 +80,13 @@ struct Rule {
     }
 
     void Print() {
-        std::cout << left_.symbol_ << " ->";
+        std::cout << static_cast<char>(left_.symbol_) << " ->";
         for (auto elem: right_) {
-            std::cout << " " << elem.symbol_;
+            if (!elem.isTerminal_ && elem.symbol_ > 256) {
+                std::cout << " " << elem.symbol_;
+            } else {
+                std::cout << " " << static_cast<char>(elem.symbol_);
+            }
         }
         std::cout << std::endl;
     }
@@ -83,7 +94,7 @@ struct Rule {
 
 struct NeTerminalHasher {
     size_t operator() (const NeTerminal& neTerminal)const {
-        return std::hash<char>{}(neTerminal.symbol_);
+        return std::hash<size_t>{}(neTerminal.symbol_);
     }
 };
 
@@ -109,18 +120,20 @@ public:
     void Print();
 private:
     void ReadRuleFromStdin();
-    bool IsTerminal (char symbol) {
+    bool IsTerminal(char symbol) {
         Terminal t (symbol);
         for (auto elem: alphabet_)
             if (elem == t) 
                 return true;
         return false;
     }
-    bool IsNeTerminal (char symbol) {
+    bool IsNeTerminal(char symbol) {
         NeTerminal t (symbol);
         for (auto elem: neTerminals_)
             if (elem == t) 
                 return true;
         return false;
     }
+    void RemoveLongRules();
+    void RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule);
 };
