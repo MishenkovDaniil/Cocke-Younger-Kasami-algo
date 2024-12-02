@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
-
+#include <cassert>
 
 enum class GrammarType {
     Any, Chomsky, LR0, LR1, LRk
@@ -41,12 +41,22 @@ struct GrammarSymbol {
     bool operator < (const GrammarSymbol&other) const {
         return symbol_ < other.symbol_;
     }
+    std::string GetAsString () const {
+        std::string str;
+        size_t symb = symbol_;
+        str.push_back(symb % 128);
+        while (symb > 128) {
+            symb -= 128;
+            str.push_back('*');
+        }
+        return str;
+    }
 };
 
 struct Terminal : public GrammarSymbol {
     Terminal() = default;
     Terminal(size_t terminal) : GrammarSymbol(terminal, true){ 
-        if (terminal > 256) {
+        if (terminal > 128) {
             throw GrammarException("Terminals must be characters");
     }};
     Terminal(char terminal) : GrammarSymbol(terminal, true){};
@@ -54,8 +64,8 @@ struct Terminal : public GrammarSymbol {
 
 struct NeTerminal : public GrammarSymbol {
     NeTerminal() = default;
-    NeTerminal(size_t neTerminal) : GrammarSymbol(neTerminal){};
-    NeTerminal(char neTerminal) : GrammarSymbol(neTerminal){};
+    NeTerminal(size_t neTerminal) : GrammarSymbol(neTerminal){assert (neTerminal > 'A');};
+    NeTerminal(char neTerminal) : GrammarSymbol(neTerminal){ assert (neTerminal > 'A');};
 };
 
 static const Terminal Epsilon = Terminal (' ');
@@ -80,12 +90,12 @@ struct Rule {
     }
 
     void Print() {
-        std::cout << static_cast<char>(left_.symbol_) << " ->";
+        std::cout << left_.GetAsString() << " ->";
         for (auto elem: right_) {
-            if (!elem.isTerminal_ && elem.symbol_ > 256) {
-                std::cout << " " << elem.symbol_;
+            if (!elem.isTerminal_ && elem.symbol_ > 128) {
+                std::cout << " " << elem.GetAsString();
             } else {
-                std::cout << " " << static_cast<char>(elem.symbol_);
+                std::cout << " " << elem.GetAsString();
             }
         }
         std::cout << std::endl;
@@ -108,7 +118,7 @@ struct Grammar { //
     size_t alphabetSize_ = 0;
     size_t neTerminalsSize_ = 0;
     GrammarType type_ = GrammarType::Any;
-
+    size_t lastFreeSpecialSymbol_ = 128 + 'A';
 public:
     Grammar() {}
     void CreateFromStdin();    
@@ -119,6 +129,13 @@ public:
 
     void Print();
 private:
+    void UpdateLatestFreeNeTerminal () {
+        if (lastFreeSpecialSymbol_ % 128 < 'Z') {
+            ++lastFreeSpecialSymbol_;
+        } else {
+            lastFreeSpecialSymbol_ += 128 - 'Z' + 'A';
+        }
+    }
     void ReadRuleFromStdin();
     bool IsTerminal(char symbol) {
         Terminal t (symbol);
@@ -135,5 +152,8 @@ private:
         return false;
     }
     void RemoveLongRules();
+    void RemoveEmptyRules();
+    void RemoveEmptyRule(Rule& rule);
     void RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule);
+    void AddRuleWithEmptyN (Rule& rule, NeTerminal neTerminal);
 };

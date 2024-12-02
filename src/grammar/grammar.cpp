@@ -1,5 +1,7 @@
 #include "grammar.hpp"
 #include <sstream>
+#include <cctype>
+
 /*
 В первой строке содержатся 3 целых числа ∣N∣,∣Σ∣ и ∣P∣ --- количество нетерминальных символов, терминальных символов и правил в порождающей грамматике. Все числа неотрицательные и не превосходят 100.
 Во второй строке содержатся ∣N∣ нетерминальных символов. Нетерминальные символы являются заглавными латинскими буквами.
@@ -75,11 +77,14 @@ void Grammar::ReadRuleFromStdin() {
 		throw GrammarException ("Wrong rule syntax: rule doesn't contain '->' delimiter between left and right parts.");
 	}
 
-
+	// printf ("rule = %s\n", rule.c_str());
 	char symbol = 0;
 	std::vector<GrammarSymbol> right;
 	while (ruleStream.peek() != EOF && ruleStream.peek() != '\n') {
 		ruleStream >> symbol;
+		if (isspace(symbol) || symbol == 0)	
+			continue;
+		// printf ("symbol = [%d]\n", symbol);
 		if (IsNeTerminal(symbol)){
 			right.push_back(NeTerminal(symbol));
 		} else if (IsTerminal(symbol)) {
@@ -98,14 +103,14 @@ void Grammar::ReadRuleFromStdin() {
 void Grammar::Print(){
 	std::cout << "Alphabet:";
 	for (auto elem: alphabet_) {
-		std::cout << static_cast<char>(elem.symbol_) << ",";
+		std::cout << elem.GetAsString() << ",";
 	}
 	std::cout << std::endl;
 
 	std::cout << "Non-terminals:";
 	for (auto elem: neTerminals_) {
 		if (elem.symbol_ < 256) {
-			std::cout << static_cast<char>(elem.symbol_) << ",";
+			std::cout << elem.GetAsString() << ",";
 		} else {
 			std::cout << elem.symbol_ << ",";
 		}
@@ -122,7 +127,45 @@ void Grammar::Print(){
 }
 
 void Grammar::ConvertToChomsky() {
-    
+	RemoveLongRules();
+	RemoveEmptyRules();
+}
+
+void Grammar::RemoveEmptyRules() {
+	for (auto elem: neTerminals_) {
+		for (auto it = rules__[elem].begin(), end = rules__[elem].end(); it != end; ++it) {
+			if (it->right_.size() == 1 && it->right_[0] == Epsilon) {	
+				Rule rule = *it;
+				if ((!it->left_ == start_)) {
+					rules__[elem].erase(it);
+				}
+				RemoveEmptyRule(rule);
+			} 
+		}
+	}
+}
+
+void Grammar::RemoveEmptyRule(Rule& empty_rule) {
+	for (auto left: neTerminals_) {
+		for (auto rule: rules__[left]) {
+			AddRuleWithEmptyN(rule, empty_rule.left_);
+		}
+	}
+}
+
+void Grammar::AddRuleWithEmptyN (Rule& rule, NeTerminal neTerminal) {
+	size_t count = 0;
+	std::vector<GrammarSymbol> new_right;
+	for (size_t i = 0, size = rule.right_.size(); i < size; ++i) {
+		if (rule.right_[i] == neTerminal) {
+			++count;
+			continue;
+		}
+		new_right.push_back(rule.right_[i]);
+	}
+	if (count) {
+		rules__[rule.left_].push_back(Rule(rule.left_, new_right));
+	}
 }
 
 void Grammar::RemoveLongRules() {
@@ -131,11 +174,33 @@ void Grammar::RemoveLongRules() {
 		for (auto it = rules__[elem].begin(), end = rules__[elem].end(); it != end; ++it) {
 			if (it->right_.size() > 2) {
 				RemoveLongRule(new_rules, *it);
+			} else {
+				new_rules.push_back(*it);
 			}
 		}
+		rules__[elem] = new_rules;
 	}
 }
 
 void Grammar::RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule) {
+	size_t n = rule.right_.size();
+	NeTerminal prevNeTerminal = rule.left_;
+	for (size_t i = 0; i < n - 2; ++i) {
+		NeTerminal newNeTerminal = NeTerminal(lastFreeSpecialSymbol_); 
 
+		neTerminals_.push_back(newNeTerminal);
+		if (!i) {
+			new_rules.push_back (Rule(prevNeTerminal, {rule.right_[i], newNeTerminal}));	
+		} else {
+			rules__[prevNeTerminal] = std::vector<Rule>();
+			rules__[prevNeTerminal].push_back(Rule(prevNeTerminal, {rule.right_[i], newNeTerminal}));
+		}
+
+		prevNeTerminal = newNeTerminal;
+
+		UpdateLatestFreeNeTerminal();
+	}
+	rules__[prevNeTerminal].push_back(Rule(prevNeTerminal, {rule.right_[n - 2], rule.right_[n - 1]}));
+	neTerminalsSize_ += n - 2;
+	rulesSize_ += n - 2;
 }
