@@ -50,7 +50,7 @@ int main () {
 void runAlgo () {
     Grammar grammar;
     grammar.CreateFromStdin();
-    // grammar.Print();
+    grammar.Print();
 
     CYK cyk;
     cyk.fit(grammar);
@@ -71,3 +71,21 @@ void runAlgo () {
         std::cout << "res for " << stringsToPredict[i] << " = " << res << "\n";
     }
 }
+
+/* stdin example
+3 2 5
+SBC
+ab
+S->BC
+B->BB
+C->CC
+C->b
+B->a
+S
+5
+ab
+abb
+aaaabbbb
+bab
+bba
+*/
