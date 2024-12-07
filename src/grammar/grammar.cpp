@@ -133,7 +133,7 @@ void Grammar::ConvertToChomsky() {
 	RemoveEmptyRules();
 	RemoveChainRules();
     RemoveUselessSymbols();    
-	// RemoveRemain();
+	RemoveRemain();
 }
 
 void Grammar::RemoveEmptyRules() {
