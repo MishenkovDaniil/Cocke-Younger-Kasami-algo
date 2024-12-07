@@ -132,8 +132,8 @@ void Grammar::ConvertToChomsky() {
 	RemoveLongRules();
 	RemoveEmptyRules();
 	RemoveChainRules();
-    // RemoveUselessSymbols();    
-	RemoveRemain();
+    RemoveUselessSymbols();    
+	// RemoveRemain();
 }
 
 void Grammar::RemoveEmptyRules() {
@@ -251,65 +251,66 @@ bool Grammar::IsChainRule(Rule& rule) {
 
 void Grammar::RemoveUselessSymbols(){
 	RemoveNonGeneratingRules();
-	RemoveNonAchievableRules();
+	// RemoveNonAchievableRules();
 }
-
 void Grammar::RemoveNonGeneratingRules(){
-	std::vector<NeTerminal> generating;
-	std::vector<NeTerminal> not_generating = neTerminals_;
-	// for (auto elem: neTerminals_){
-	// 	bool gen = false;
-	// 	for (auto rule: rules__[elem]) {
-	// 		if (rule.right_[0].isTerminal_) {
-	// 			if (rule.right_.size() == 1 || rule.right_[1].isTerminal_) {
-	// 				generating.push_back(elem);
-	// 				gen = true;
-	// 				break;
-	// 			}
-	// 		}
-	// 	}
-	// 	if (!gen){
-	// 		not_generating.push_back(elem);
-	// 	}
-	// }
+	std::set<NeTerminal> generating;
+	std::set<NeTerminal> non_generating;
+	for (auto elem: neTerminals_){
+		bool non_gen = true;
+		for (auto rule: rules__[elem]) {
+			if (rule.right_[0].isTerminal_) {
+				if (rule.right_.size() == 1 || rule.right_[1].isTerminal_) {
+					generating.insert(elem);
+					non_gen = false;
+					break;
+				}
+			}
+		}
+		if (non_gen)
+			non_generating.insert(elem);
+	}
 
-	size_t last = -1;
+	size_t last = 0;
 	while (last != generating.size()) {
 		last = generating.size();
-		std::vector<NeTerminal> new_not_generating;
-		for (auto elem: not_generating){
-			bool nongen = true;
+		auto it = non_generating.begin();
+		auto end = non_generating.end();
+		while (it != end) {
+			NeTerminal elem = *it;
+			bool non_gen = true;
 			for (auto rule: rules__[elem]) {
 				if (IsGeneratingRule(rule, generating)) {
-					generating.push_back(elem);
-					nongen = false;
+					generating.insert(elem);
+					non_gen = false;
 					break;
 				} 
 			}
-			if (nongen) {
-				new_not_generating.push_back(elem);
-			}
+			++it;
+			if (!non_gen)
+				non_generating.erase(elem);
 		}
-		not_generating = new_not_generating;
 	}
 
-
-	if (not_generating.size()) {
-		for (auto elem: not_generating) {
+	if (non_generating.size()) {
+		for (auto elem: non_generating) {
 			rulesSize_ -= rules__[elem].size();
 			rules__[elem] = std::vector<Rule>();
 		}
 		for (auto elem: generating) {
 			std::vector<Rule> new_rules;
 			for (auto rule: rules__[elem]) {
-				if (!IsNonGeneratingRule(rule, not_generating)) {
+				if (!IsNonGeneratingRule(rule, non_generating)) {
 					new_rules.push_back(rule);
+				} else {
+					std::cout << "removed rule is ";
+					rule.Print();
 				}
 			}
 
 			if (new_rules.size() != rules__[elem].size()) {
-				rulesSize_ -= rules__[elem].size();
 				rulesSize_ += new_rules.size();
+				rulesSize_ -= rules__[elem].size();
 				rules__[elem] = new_rules;
 			}
 		}
@@ -400,32 +401,25 @@ bool Grammar::IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& not_achiev
 	return false;
 }
 
-bool Grammar::IsNonGeneratingRule(Rule&rule, std::vector<NeTerminal>& non_generating) {
+bool Grammar::IsNonGeneratingRule(Rule&rule, std::set<NeTerminal>& non_generating) {
 	size_t len = rule.right_.size();
 	for (size_t i = 0; i < len; ++i) {
 		if (!(rule.right_[i].isTerminal_)) {
-			for (size_t k = 0, max = non_generating.size(); k < max; ++k) {
-				if (non_generating[k] == rule.right_[i]) {
-					return true;
-				}
+			NeTerminal right = *(reinterpret_cast<NeTerminal *>(&rule.right_[i]));
+			if (non_generating.count(right)) {
+				return true;
 			}
 		}
 	}
 	return false;
 }
 
-bool Grammar::IsGeneratingRule(Rule&rule, std::vector<NeTerminal>& generating) {
+bool Grammar::IsGeneratingRule(Rule&rule, std::set<NeTerminal>& generating) {
 	size_t len = rule.right_.size();
 	for (size_t i = 0; i < len; ++i) {
 		if (!(rule.right_[i].isTerminal_)) {
-			bool contain = false;
-			for (size_t k = 0, max = generating.size(); k < max; ++k) {
-				if (generating[i] == rule.right_[i]) {
-					contain = true;
-					break;
-				}
-			}
-			if (!contain) {
+			NeTerminal right = *(reinterpret_cast<NeTerminal *>(&rule.right_[i]));
+			if (!generating.count(right)) {
 				return false;
 			}
 		}

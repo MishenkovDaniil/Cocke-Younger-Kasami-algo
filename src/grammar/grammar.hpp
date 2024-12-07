@@ -1,9 +1,10 @@
 #pragma once
+#include <cassert>
 #include <exception>
 #include <iostream>
+#include <set>
 #include <vector>
 #include <unordered_map>
-#include <cassert>
 
 enum class GrammarType {
     Any, Chomsky, LR0, LR1, LRk
@@ -165,8 +166,8 @@ private:
     void RemoveUselessSymbols();
     void RemoveNonGeneratingRules();
     void RemoveNonAchievableRules();
-    bool IsGeneratingRule(Rule&rule, std::vector<NeTerminal>& generating);
-    bool IsNonGeneratingRule(Rule&rule, std::vector<NeTerminal>& non_generating);
+    bool IsGeneratingRule(Rule&rule, std::set<NeTerminal>& generating);
+    bool IsNonGeneratingRule(Rule&rule, std::set<NeTerminal>& non_generating);
     bool IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& non_achievable);
 
     void RemoveRemain();
