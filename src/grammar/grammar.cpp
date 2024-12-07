@@ -132,7 +132,7 @@ void Grammar::ConvertToChomsky() {
 	RemoveLongRules();
 	RemoveEmptyRules();
 	RemoveChainRules();
-    RemoveUselessSymbols();    
+    // RemoveUselessSymbols();    
 	RemoveRemain();
 }
 
@@ -234,7 +234,9 @@ void Grammar::RemoveChainRules() {
 void Grammar::RemoveChainRule(Rule& rule, std::vector<Rule>& new_rules) {
 	NeTerminal left = rule.left_;
 	NeTerminal right = *(reinterpret_cast<NeTerminal*>(&rule.right_[0]));
-
+	if (left == right) {
+		return;
+	}
 	for (auto rule: rules__[right]) {
 		if (!IsChainRule(rule)) {
 			new_rules.emplace_back(left, rule.right_);
@@ -433,32 +435,38 @@ bool Grammar::IsGeneratingRule(Rule&rule, std::vector<NeTerminal>& generating) {
 
 void Grammar::RemoveRemain(){
 	std::map<GrammarSymbol, NeTerminal> map;
+
 	for (auto elem:neTerminals_) {
 		std::vector<Rule> new_rules;
+	
 		for (auto rule: rules__[elem]) {
 			if (rule.right_.size() == 2) {
 				bool isFromTerminal = false;
 				GrammarSymbol symb1 = rule.right_[0];
 				GrammarSymbol symb2 = rule.right_[1];
+	
 				if (rule.right_[0].isTerminal_) {
 					isFromTerminal = true;
 					if (!map.count(rule.right_[0])) {
 						NeTerminal newNeTerminal = NeTerminal(lastFreeSpecialSymbol_);
 						UpdateLatestFreeNeTerminal();
 						rules__[newNeTerminal] = std::vector<Rule>();
-						rules__[elem].push_back (Rule(newNeTerminal, {rule.right_[0]}));
+						rules__[newNeTerminal].push_back (Rule(newNeTerminal, {rule.right_[0]}));
 						map[rule.right_[0]] = newNeTerminal;
+						++rulesSize_;
 					}
 					symb1 = map[rule.right_[0]];
 				}
+	
 				if (rule.right_[1].isTerminal_) {
 					isFromTerminal = true;
 					if (!map.count(rule.right_[1])) {
 						NeTerminal newNeTerminal = NeTerminal(lastFreeSpecialSymbol_);
 						UpdateLatestFreeNeTerminal();
 						rules__[newNeTerminal] = std::vector<Rule>();
-						rules__[elem].push_back (Rule(newNeTerminal, {rule.right_[1]}));
+						rules__[newNeTerminal].push_back (Rule(newNeTerminal, {rule.right_[1]}));
 						map[rule.right_[1]] = newNeTerminal;
+						++rulesSize_;
 					}
 					symb2 = map[rule.right_[1]];
 				}
@@ -472,9 +480,8 @@ void Grammar::RemoveRemain(){
 				new_rules.push_back(rule);
 			}
 		}
-		if (new_rules.size() != rules__[elem].size()) {
-			rulesSize_ -= rules__[elem].size() - new_rules.size();
-			rules__[elem] = new_rules;
-		}
+
+		rulesSize_ -= rules__[elem].size() - new_rules.size();
+		rules__[elem] = new_rules;
 	}	
 }
