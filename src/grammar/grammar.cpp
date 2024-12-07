@@ -251,7 +251,7 @@ bool Grammar::IsChainRule(Rule& rule) {
 
 void Grammar::RemoveUselessSymbols(){
 	RemoveNonGeneratingRules();
-	// RemoveNonAchievableRules();
+	RemoveNonAchievableRules();
 }
 void Grammar::RemoveNonGeneratingRules(){
 	std::set<NeTerminal> generating;
@@ -302,10 +302,7 @@ void Grammar::RemoveNonGeneratingRules(){
 			for (auto rule: rules__[elem]) {
 				if (!IsNonGeneratingRule(rule, non_generating)) {
 					new_rules.push_back(rule);
-				} else {
-					std::cout << "removed rule is ";
-					rule.Print();
-				}
+				} 
 			}
 
 			if (new_rules.size() != rules__[elem].size()) {
@@ -318,50 +315,37 @@ void Grammar::RemoveNonGeneratingRules(){
 }
 
 void Grammar::RemoveNonAchievableRules(){
-	std::vector<NeTerminal> achievable;
-	std::set<NeTerminal> achievable_temp;
-	achievable.push_back(start_);
-	achievable_temp.insert(start_);
-	std::vector<NeTerminal> not_achievable;
+	std::set<NeTerminal> achievable = {start_}; 
+	std::set<NeTerminal> achievable_temp = {start_}; 
+	std::set<NeTerminal> not_achievable;
 	for (auto elem:neTerminals_) {
 		if (elem == start_)
 			continue;
-		not_achievable.push_back(elem);
+		not_achievable.insert(elem);
 	}
 
 	size_t last = 0;
 	while (last != achievable.size()) {
 		last = achievable.size();
-		std::vector<NeTerminal> new_not_achievable;
 		std::set<NeTerminal> new_achievable;
 
 		for (auto elem: achievable_temp){
 			for (auto rule: rules__[elem]) {
-				size_t len = rule.right_.size();
-				for (size_t i = 0; i < len; ++i) {
+				for (size_t i = 0, len = rule.right_.size(); i < len; ++i) {
 					if (!(rule.right_[i].isTerminal_)) {
-						for (size_t k = 0, max = not_achievable.size(); k < max; ++k) {
-							if (not_achievable[k] == rule.right_[i]) {
-								if (!new_achievable.count(not_achievable[k])) {
-									new_achievable.insert(not_achievable[k]);
-									achievable.push_back(not_achievable[k]);
-								}
-								break;
-							}
+						NeTerminal right = *(reinterpret_cast<NeTerminal *>(&rule.right_[i]));
+						if (not_achievable.count(right)) {
+							new_achievable.insert(right);
+							achievable.insert(right);
+							not_achievable.erase(right);
 						}
 					}
 				}
 			}
 		}
 
-		for (auto elem:not_achievable) {
-			if (!new_achievable.count(elem)) {
-				new_not_achievable.push_back(elem);
-			}
-		}
 		achievable_temp.clear();
 		achievable_temp = new_achievable;
-		not_achievable = new_not_achievable;
 	}
 
 
@@ -377,7 +361,6 @@ void Grammar::RemoveNonAchievableRules(){
 					new_rules.push_back(rule);
 				}
 			}
-
 			if (new_rules.size() != rules__[elem].size()) {
 				rulesSize_ -= rules__[elem].size();
 				rulesSize_ += new_rules.size();
@@ -387,14 +370,13 @@ void Grammar::RemoveNonAchievableRules(){
 	}
 }
 
-bool Grammar::IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& not_achievable) {
+bool Grammar::IsNonAchievableRule(Rule&rule, std::set<NeTerminal>& not_achievable) {
 	size_t len = rule.right_.size();
 	for (size_t i = 0; i < len; ++i) {
 		if (!(rule.right_[i].isTerminal_)) {
-			for (size_t k = 0, max = not_achievable.size(); k < max; ++k) {
-				if (not_achievable[k] == rule.right_[i]) {
-					return true;
-				}
+			NeTerminal right = *(reinterpret_cast<NeTerminal *>(&rule.right_[i]));
+			if (not_achievable.count(right)) {
+				return true;
 			}
 		}
 	}

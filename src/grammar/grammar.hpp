@@ -168,7 +168,7 @@ private:
     void RemoveNonAchievableRules();
     bool IsGeneratingRule(Rule&rule, std::set<NeTerminal>& generating);
     bool IsNonGeneratingRule(Rule&rule, std::set<NeTerminal>& non_generating);
-    bool IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& non_achievable);
+    bool IsNonAchievableRule(Rule&rule, std::set<NeTerminal>& non_achievable);
 
     void RemoveRemain();
 };
