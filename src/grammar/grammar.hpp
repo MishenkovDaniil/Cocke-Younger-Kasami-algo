@@ -152,8 +152,22 @@ private:
         return false;
     }
     void RemoveLongRules();
+    void RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule);
+    
     void RemoveEmptyRules();
     void RemoveEmptyRule(Rule& rule);
-    void RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule);
     void AddRuleWithEmptyN (Rule& rule, NeTerminal neTerminal);
+    
+    void RemoveChainRules();
+    void RemoveChainRule(Rule& rule, std::vector<Rule>& new_rules);
+    bool IsChainRule(Rule& rule);
+    
+    void RemoveUselessSymbols();
+    void RemoveNonGeneratingRules();
+    void RemoveNonAchievableRules();
+    bool IsGeneratingRule(Rule&rule, std::vector<NeTerminal>& generating);
+    bool IsNonGeneratingRule(Rule&rule, std::vector<NeTerminal>& non_generating);
+    bool IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& non_achievable);
+
+    void RemoveRemain();
 };

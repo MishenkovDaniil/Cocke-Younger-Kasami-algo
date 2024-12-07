@@ -1,6 +1,8 @@
 #include "grammar.hpp"
 #include <sstream>
 #include <cctype>
+#include <set>
+#include <map>
 
 /*
 В первой строке содержатся 3 целых числа ∣N∣,∣Σ∣ и ∣P∣ --- количество нетерминальных символов, терминальных символов и правил в порождающей грамматике. Все числа неотрицательные и не превосходят 100.
@@ -129,6 +131,9 @@ void Grammar::Print(){
 void Grammar::ConvertToChomsky() {
 	RemoveLongRules();
 	RemoveEmptyRules();
+	RemoveChainRules();
+    RemoveUselessSymbols();    
+	RemoveRemain();
 }
 
 void Grammar::RemoveEmptyRules() {
@@ -203,4 +208,273 @@ void Grammar::RemoveLongRule(std::vector<Rule>& new_rules, Rule& rule) {
 	rules__[prevNeTerminal].push_back(Rule(prevNeTerminal, {rule.right_[n - 2], rule.right_[n - 1]}));
 	neTerminalsSize_ += n - 2;
 	rulesSize_ += n - 2;
+}
+
+void Grammar::RemoveChainRules() {
+	for (auto elem: neTerminals_) {
+		size_t count = 0;
+		std::vector<Rule> new_rules;
+
+		for (auto it = rules__[elem].begin(), end = rules__[elem].end(); it != end; ++it) {
+			if (it->right_.size() == 1 && !((it->right_)[0].IsTerminal())) {	
+				RemoveChainRule(*it, new_rules);
+				++count;
+			} else {
+				new_rules.push_back(*it);
+			}
+		}
+
+		if (count) {
+			rulesSize_ += new_rules.size() - rules__[elem].size();
+			rules__[elem] = new_rules;
+		}
+	}
+}
+
+void Grammar::RemoveChainRule(Rule& rule, std::vector<Rule>& new_rules) {
+	NeTerminal left = rule.left_;
+	NeTerminal right = *(reinterpret_cast<NeTerminal*>(&rule.right_[0]));
+
+	for (auto rule: rules__[right]) {
+		if (!IsChainRule(rule)) {
+			new_rules.emplace_back(left, rule.right_);
+		}
+	}
+}
+
+bool Grammar::IsChainRule(Rule& rule) {
+	return rule.right_.size() == 1 && !(rule.right_[0].isTerminal_);
+}
+
+
+void Grammar::RemoveUselessSymbols(){
+	RemoveNonGeneratingRules();
+	RemoveNonAchievableRules();
+}
+
+void Grammar::RemoveNonGeneratingRules(){
+	std::vector<NeTerminal> generating;
+	std::vector<NeTerminal> not_generating = neTerminals_;
+	// for (auto elem: neTerminals_){
+	// 	bool gen = false;
+	// 	for (auto rule: rules__[elem]) {
+	// 		if (rule.right_[0].isTerminal_) {
+	// 			if (rule.right_.size() == 1 || rule.right_[1].isTerminal_) {
+	// 				generating.push_back(elem);
+	// 				gen = true;
+	// 				break;
+	// 			}
+	// 		}
+	// 	}
+	// 	if (!gen){
+	// 		not_generating.push_back(elem);
+	// 	}
+	// }
+
+	size_t last = -1;
+	while (last != generating.size()) {
+		last = generating.size();
+		std::vector<NeTerminal> new_not_generating;
+		for (auto elem: not_generating){
+			bool nongen = true;
+			for (auto rule: rules__[elem]) {
+				if (IsGeneratingRule(rule, generating)) {
+					generating.push_back(elem);
+					nongen = false;
+					break;
+				} 
+			}
+			if (nongen) {
+				new_not_generating.push_back(elem);
+			}
+		}
+		not_generating = new_not_generating;
+	}
+
+
+	if (not_generating.size()) {
+		for (auto elem: not_generating) {
+			rulesSize_ -= rules__[elem].size();
+			rules__[elem] = std::vector<Rule>();
+		}
+		for (auto elem: generating) {
+			std::vector<Rule> new_rules;
+			for (auto rule: rules__[elem]) {
+				if (!IsNonGeneratingRule(rule, not_generating)) {
+					new_rules.push_back(rule);
+				}
+			}
+
+			if (new_rules.size() != rules__[elem].size()) {
+				rulesSize_ -= rules__[elem].size();
+				rulesSize_ += new_rules.size();
+				rules__[elem] = new_rules;
+			}
+		}
+	}
+}
+
+void Grammar::RemoveNonAchievableRules(){
+	std::vector<NeTerminal> achievable;
+	std::set<NeTerminal> achievable_temp;
+	achievable.push_back(start_);
+	achievable_temp.insert(start_);
+	std::vector<NeTerminal> not_achievable;
+	for (auto elem:neTerminals_) {
+		if (elem == start_)
+			continue;
+		not_achievable.push_back(elem);
+	}
+
+	size_t last = 0;
+	while (last != achievable.size()) {
+		last = achievable.size();
+		std::vector<NeTerminal> new_not_achievable;
+		std::set<NeTerminal> new_achievable;
+
+		for (auto elem: achievable_temp){
+			for (auto rule: rules__[elem]) {
+				size_t len = rule.right_.size();
+				for (size_t i = 0; i < len; ++i) {
+					if (!(rule.right_[i].isTerminal_)) {
+						for (size_t k = 0, max = not_achievable.size(); k < max; ++k) {
+							if (not_achievable[k] == rule.right_[i]) {
+								if (!new_achievable.count(not_achievable[k])) {
+									new_achievable.insert(not_achievable[k]);
+									achievable.push_back(not_achievable[k]);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for (auto elem:not_achievable) {
+			if (!new_achievable.count(elem)) {
+				new_not_achievable.push_back(elem);
+			}
+		}
+		achievable_temp.clear();
+		achievable_temp = new_achievable;
+		not_achievable = new_not_achievable;
+	}
+
+
+	if (not_achievable.size()) {
+		for (auto elem: not_achievable) {
+			rulesSize_ -= rules__[elem].size();
+			rules__[elem] = std::vector<Rule>();
+		}
+		for (auto elem: achievable) {
+			std::vector<Rule> new_rules;
+			for (auto rule: rules__[elem]) {
+				if (!IsNonAchievableRule(rule, not_achievable)) {
+					new_rules.push_back(rule);
+				}
+			}
+
+			if (new_rules.size() != rules__[elem].size()) {
+				rulesSize_ -= rules__[elem].size();
+				rulesSize_ += new_rules.size();
+				rules__[elem] = new_rules;
+			}
+		}
+	}
+}
+
+bool Grammar::IsNonAchievableRule(Rule&rule, std::vector<NeTerminal>& not_achievable) {
+	size_t len = rule.right_.size();
+	for (size_t i = 0; i < len; ++i) {
+		if (!(rule.right_[i].isTerminal_)) {
+			for (size_t k = 0, max = not_achievable.size(); k < max; ++k) {
+				if (not_achievable[k] == rule.right_[i]) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool Grammar::IsNonGeneratingRule(Rule&rule, std::vector<NeTerminal>& non_generating) {
+	size_t len = rule.right_.size();
+	for (size_t i = 0; i < len; ++i) {
+		if (!(rule.right_[i].isTerminal_)) {
+			for (size_t k = 0, max = non_generating.size(); k < max; ++k) {
+				if (non_generating[k] == rule.right_[i]) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool Grammar::IsGeneratingRule(Rule&rule, std::vector<NeTerminal>& generating) {
+	size_t len = rule.right_.size();
+	for (size_t i = 0; i < len; ++i) {
+		if (!(rule.right_[i].isTerminal_)) {
+			bool contain = false;
+			for (size_t k = 0, max = generating.size(); k < max; ++k) {
+				if (generating[i] == rule.right_[i]) {
+					contain = true;
+					break;
+				}
+			}
+			if (!contain) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void Grammar::RemoveRemain(){
+	std::map<GrammarSymbol, NeTerminal> map;
+	for (auto elem:neTerminals_) {
+		std::vector<Rule> new_rules;
+		for (auto rule: rules__[elem]) {
+			if (rule.right_.size() == 2) {
+				bool isFromTerminal = false;
+				GrammarSymbol symb1 = rule.right_[0];
+				GrammarSymbol symb2 = rule.right_[1];
+				if (rule.right_[0].isTerminal_) {
+					isFromTerminal = true;
+					if (!map.count(rule.right_[0])) {
+						NeTerminal newNeTerminal = NeTerminal(lastFreeSpecialSymbol_);
+						UpdateLatestFreeNeTerminal();
+						rules__[newNeTerminal] = std::vector<Rule>();
+						rules__[elem].push_back (Rule(newNeTerminal, {rule.right_[0]}));
+						map[rule.right_[0]] = newNeTerminal;
+					}
+					symb1 = map[rule.right_[0]];
+				}
+				if (rule.right_[1].isTerminal_) {
+					isFromTerminal = true;
+					if (!map.count(rule.right_[1])) {
+						NeTerminal newNeTerminal = NeTerminal(lastFreeSpecialSymbol_);
+						UpdateLatestFreeNeTerminal();
+						rules__[newNeTerminal] = std::vector<Rule>();
+						rules__[elem].push_back (Rule(newNeTerminal, {rule.right_[1]}));
+						map[rule.right_[1]] = newNeTerminal;
+					}
+					symb2 = map[rule.right_[1]];
+				}
+
+				if (isFromTerminal) {
+					new_rules.push_back(Rule(elem, {symb1, symb2}));
+				} else {
+					new_rules.push_back(rule);
+				}			
+			} else {
+				new_rules.push_back(rule);
+			}
+		}
+		if (new_rules.size() != rules__[elem].size()) {
+			rulesSize_ -= rules__[elem].size() - new_rules.size();
+			rules__[elem] = new_rules;
+		}
+	}	
 }
