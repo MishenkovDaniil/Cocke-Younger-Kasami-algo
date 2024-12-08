@@ -4,3 +4,5 @@ Debug_flags = -D _DEBUG -ggdb3 -std=c++17 -O0 -Wextra -Weffc++ -Waggressive-loop
 
 all: src/main.cpp src/cyk.cpp src/grammar/grammar.cpp
 	$(CC) src/main.cpp src/cyk.cpp src/grammar/grammar.cpp $(Flags) -o cyk
+run:
+	./cyk
